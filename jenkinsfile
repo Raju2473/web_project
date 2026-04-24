@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "powerpulse-frontend"
+        DOCKER_USER = "rajeshwar2473"
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Raju2473/web_project.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                docker build -t $DOCKER_USER/$IMAGE_NAME:latest .
+                """
+            }
+        }
+
+        stage('Push Image') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-cred',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+                    sh """
+                    echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                    docker push $DOCKER_USER/$IMAGE_NAME:latest
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh """
+                kubectl apply -f k8s/
+                """
+            }
+        }
+    }
+}
